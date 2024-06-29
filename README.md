@@ -5,7 +5,7 @@
 
 <p>Welcome to the SideBySide Node repository for ComfyUI! This custom node allows you to create side-by-side (SBS) stereoscopic images from a standard image and a depth map, enabling a rich, three-dimensional viewing experience.</p>
 
-<h2>Introduction
+<h2>Introduction</h2>
 <p>The SideBySide Node is a powerful tool designed for ComfyUI to generate stereoscopic images. It takes a base image and a corresponding depth map as inputs and produces a combined image that simulates a 3D effect when viewed with appropriate equipment.</p>
 
 
