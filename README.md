@@ -1,4 +1,4 @@
-# SideBySide Node for ComfyUI
+# SideBySide Custom Node for ComfyUI
 <p>Side by Side Stereoscope node for ComfyUI by SamSeen</p>
 
 ![SBS_bySamSeen](https://github.com/MrSamSeen/ComfyUI_SSStereoscope/assets/8541558/45016b16-81b7-430c-81a5-ec63627398e8)
