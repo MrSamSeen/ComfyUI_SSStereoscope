@@ -1,6 +1,11 @@
 [project]
+
 name = "comfyui_ssstereoscope"
 description = "The SideBySide Node is a powerful tool designed for ComfyUI to generate stereoscopic images. It takes a base image and a corresponding depth map as inputs and produces a combined image that simulates a 3D effect when viewed with appropriate equipment."
+
+name = "comfyui_ssstereoscope_bysamseen"
+description = "Side by Side 3D Stereoscope generation node for ComfyUI by SamSeen"
+
 version = "1.0.0"
 license = "LICENSE"
 dependencies = ["numpy", "Pillow", "torch"]
@@ -10,6 +15,6 @@ Repository = "https://github.com/MrSamSeen/ComfyUI_SSStereoscope"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "samseen"
 DisplayName = "ComfyUI_SSStereoscope"
 Icon = ""
