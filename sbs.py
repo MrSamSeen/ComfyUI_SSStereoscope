@@ -3,7 +3,6 @@ from PIL import Image
 import numpy as np
 import tqdm
 
-
 class SideBySide:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -14,16 +13,17 @@ class SideBySide:
             "required": {
                 "base_image": ("IMAGE",),
                 "depth_map": ("IMAGE",),
-                "depth_scale": ("INT", {"default": 50}),
+                "depth_scale": ("INT", {"default": 30}),
+                "mode": (["Cross-eyed", "Fliped"], {}),
             },
-            
         }
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "SideBySide"
     CATEGORY = "👀 SamSeen"
 
-    def SideBySide(self, base_image, depth_map, depth_scale):
+    def SideBySide(self, base_image, depth_map, depth_scale, mode="Cross-eyed"):
+
         """
         Create a side-by-side (SBS) stereoscopic image from a standard image and a depth map.
 
@@ -31,10 +31,12 @@ class SideBySide:
         - base_image: numpy array representing the base image.
         - depth_map: numpy array representing the depth map.
         - depth_scale: integer representing the scaling factor for depth.
+        - flip side
 
         Returns:
-        - sbs_image: numpy array containing the stereoscopic image.
+        - sbs_image: the stereoscopic image.
         """
+
         # Convert tensor to numpy array and then to PIL Image
         image_np = base_image.cpu().numpy().squeeze(0)  # Convert from CxHxW to HxWxC
         image = Image.fromarray((image_np * 255).astype(np.uint8))  # Convert float [0,1] tensor to uint8 image
@@ -45,33 +47,37 @@ class SideBySide:
         # Get dimensions and resize depth map to match base image
         width, height = image.size
         depth_map_img = depth_map_img.resize((width, height), Image.NEAREST)
+        fliped = 0 if mode == "Cross-eyed" else width
 
         # Create an empty image for the side-by-side result
         sbs_image = np.zeros((height, width * 2, 3), dtype=np.uint8)
-        depth_scaling = depth_scale / width
+        depth_scaling = depth_scale / width 
 
-        # Fill the right half of the SBS image with the base image
+        # Fill the base images 
         for y in range(height):
             for x in range(width):
                 color = image.getpixel((x, y))
                 sbs_image[y, width + x] = color
+                sbs_image[y, x] = color
 
-
-        # Apply depth map to shift pixels in the left half of the SBS image
+        # generating the shifted image
         for y in tqdm.tqdm(range(height)):
             for x in range(width):
                 depth_value = depth_map_img.getpixel((x, y))[0]
-                pixel_shift = int(depth_value * depth_scaling) + 1
-                if x + pixel_shift < width:
-                    new_coords = (x + 1, y) if x + 1 < width else (x, y)
-                    for i in range(pixel_shift):
-                        sbs_image[y, width + x - i] = image.getpixel(new_coords)
+                pixel_shift = int(depth_value * depth_scaling)
+                # pixel_shift = 1 if pixel_shift == 0 else pixel_shift
+                new_x = x + pixel_shift
 
-        # Copy the base image to the left half of the SBS image
-        for y in range(height):
-            for x in range(width):
-                color = image.getpixel((x, y))
-                sbs_image[y, x] = color
+                if new_x >= width:
+                    new_x = width
+                if new_x <= 0:
+                    new_x = 0
+
+                for i in range(pixel_shift+10):
+                    if new_x + i  >= width or new_x  < 0:
+                        break
+                    new_coords = (y, new_x + i + fliped)
+                    sbs_image[new_coords] = image.getpixel((x, y))
 
         # Convert back to tensor if needed
         sbs_image_tensor = torch.tensor(sbs_image.astype(np.float32) / 255.0).unsqueeze(0).unsqueeze(0)  # Convert back to CxHxW
