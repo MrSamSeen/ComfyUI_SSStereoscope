@@ -2,6 +2,7 @@ import torch
 from PIL import Image
 import numpy as np
 import tqdm
+from comfy.utils import ProgressBar
 
 class SideBySide:
     def __init__(self):
@@ -52,6 +53,7 @@ class SideBySide:
         # Create an empty image for the side-by-side result
         sbs_image = np.zeros((height, width * 2, 3), dtype=np.uint8)
         depth_scaling = depth_scale / width 
+        pbar = ProgressBar(height)
 
         # Fill the base images 
         for y in range(height):
@@ -62,10 +64,12 @@ class SideBySide:
 
         # generating the shifted image
         for y in tqdm.tqdm(range(height)):
+            pbar.update(1)
             for x in range(width):
+                
                 depth_value = depth_map_img.getpixel((x, y))[0]
                 pixel_shift = int(depth_value * depth_scaling)
-                # pixel_shift = 1 if pixel_shift == 0 else pixel_shift
+                
                 new_x = x + pixel_shift
 
                 if new_x >= width:
