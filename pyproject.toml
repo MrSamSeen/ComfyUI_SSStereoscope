@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_ssstereoscope_bysamseen"
 description = "Side by Side 3D Stereoscope generation node for ComfyUI by SamSeen"
-version = "1.0.4"
+version = "1.0.3"
 license = "LICENSE"
 dependencies = ["numpy", "Pillow", "torch"]
 
