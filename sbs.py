@@ -15,7 +15,7 @@ class SideBySide:
                 "base_image": ("IMAGE",),
                 "depth_map": ("IMAGE",),
                 "depth_scale": ("INT", {"default": 30}),
-                "mode": (["Cross-eyed", "Fliped"], {}),
+                "mode": (["Parallel", "Cross-eyed"], {}),
             },
         }
 
@@ -32,7 +32,9 @@ class SideBySide:
         - base_image: numpy array representing the base image.
         - depth_map: numpy array representing the depth map.
         - depth_scale: integer representing the scaling factor for depth.
-        - flip side
+        - modes: 
+        "Parallel" = the right view angle is on the right side 
+        "Cross-eyed" = flipped
 
         Returns:
         - sbs_image: the stereoscopic image.
@@ -48,7 +50,7 @@ class SideBySide:
         # Get dimensions and resize depth map to match base image
         width, height = image.size
         depth_map_img = depth_map_img.resize((width, height), Image.NEAREST)
-        fliped = 0 if mode == "Cross-eyed" else width
+        fliped = 0 if mode == "Parallel" else width
 
         # Create an empty image for the side-by-side result
         sbs_image = np.zeros((height, width * 2, 3), dtype=np.uint8)
