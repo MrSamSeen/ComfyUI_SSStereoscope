@@ -4,7 +4,7 @@ import numpy as np
 import tqdm
 from comfy.utils import ProgressBar
 
-class SideBySide:
+class SBS_External_Depthmap_by_SamSeen:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -16,36 +16,49 @@ class SideBySide:
                 "depth_map": ("IMAGE",),
                 "depth_scale": ("INT", {"default": 30}),
                 "mode": (["Parallel", "Cross-eyed"], {}),
-            },
+            }
         }
 
     RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "SideBySide"
+    RETURN_NAMES = ("stereoscopic_image",)
+    FUNCTION = "process"
     CATEGORY = "👀 SamSeen"
+    DESCRIPTION = "Legacy version: Create side-by-side (SBS) stereoscopic images and videos using your own custom depth maps. For advanced users who want complete control over the 3D effect."
 
-    def SideBySide(self, base_image, depth_map, depth_scale, mode="Cross-eyed"):
-
+    def process(self, base_image, depth_map, depth_scale, mode="Cross-eyed"):
         """
-        Create a side-by-side (SBS) stereoscopic image from a standard image and a depth map.
+        Create a side-by-side (SBS) stereoscopic image from a standard image.
 
         Parameters:
-        - base_image: numpy array representing the base image.
-        - depth_map: numpy array representing the depth map.
+        - base_image: tensor representing the base image.
+        - depth_map: tensor representing the depth map.
         - depth_scale: integer representing the scaling factor for depth.
-        - modes: 
-        "Parallel" = the right view angle is on the right side 
-        "Cross-eyed" = flipped
+        - mode: "Parallel" or "Cross-eyed" viewing mode.
 
         Returns:
         - sbs_image: the stereoscopic image.
         """
-
         # Convert tensor to numpy array and then to PIL Image
         image_np = base_image.cpu().numpy().squeeze(0)  # Convert from CxHxW to HxWxC
         image = Image.fromarray((image_np * 255).astype(np.uint8))  # Convert float [0,1] tensor to uint8 image
 
+        # Convert depth map tensor to numpy array and then to PIL Image
         depth_map_np = depth_map.cpu().numpy().squeeze(0)  # Convert from CxHxW to HxWxC
-        depth_map_img = Image.fromarray((depth_map_np * 255).astype(np.uint8))  # Convert float [0,1] tensor to uint8 image
+
+        # Check if depth_map_np has the right shape for PIL
+        if len(depth_map_np.shape) == 3 and depth_map_np.shape[2] == 3:
+            # Already in RGB format
+            depth_map_img = Image.fromarray((depth_map_np * 255).astype(np.uint8))
+        elif len(depth_map_np.shape) == 2:
+            # Single channel - convert to grayscale
+            depth_map_img = Image.fromarray((depth_map_np * 255).astype(np.uint8), mode='L')
+        else:
+            # Try to convert to a format PIL can handle
+            print(f"Unusual depth map shape: {depth_map_np.shape}, attempting to convert")
+            if len(depth_map_np.shape) == 3:
+                # Take first channel if it's a multi-channel image
+                depth_map_np = depth_map_np[:, :, 0]
+            depth_map_img = Image.fromarray((depth_map_np * 255).astype(np.uint8), mode='L')
 
         # Get dimensions and resize depth map to match base image
         width, height = image.size
@@ -54,10 +67,10 @@ class SideBySide:
 
         # Create an empty image for the side-by-side result
         sbs_image = np.zeros((height, width * 2, 3), dtype=np.uint8)
-        depth_scaling = depth_scale / width 
+        depth_scaling = depth_scale / width
         pbar = ProgressBar(height)
 
-        # Fill the base images 
+        # Fill the base images
         for y in range(height):
             for x in range(width):
                 color = image.getpixel((x, y))
@@ -68,10 +81,10 @@ class SideBySide:
         for y in tqdm.tqdm(range(height)):
             pbar.update(1)
             for x in range(width):
-                
+
                 depth_value = depth_map_img.getpixel((x, y))[0]
                 pixel_shift = int(depth_value * depth_scaling)
-                
+
                 new_x = x + pixel_shift
 
                 if new_x >= width:
@@ -86,5 +99,6 @@ class SideBySide:
                     sbs_image[new_coords] = image.getpixel((x, y))
 
         # Convert back to tensor if needed
-        sbs_image_tensor = torch.tensor(sbs_image.astype(np.float32) / 255.0).unsqueeze(0).unsqueeze(0)  # Convert back to CxHxW
-        return sbs_image_tensor
+        sbs_image_tensor = torch.tensor(sbs_image.astype(np.float32) / 255.0).unsqueeze(0)  # Convert back to CxHxW
+
+        return (sbs_image_tensor,)

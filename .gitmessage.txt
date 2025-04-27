@@ -1,0 +1,9 @@
+feat: add sequential video processing and custom upload nodes
+
+- Implement SBSVideoUploader for video to image sequence conversion
+- Add SBSImageUploader for single image processing
+- Create SBSVideoCombiner to merge processed frames back to video
+- Support custom file uploads via web interface components
+- Add CSS styling for improved node appearance
+- Include comprehensive documentation for 3D video workflow
+- Optimize frame processing with configurable parameters

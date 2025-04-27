@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBS Stereoscope Nodes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2980b9;
+            margin-top: 20px;
+        }
+        .node-info {
+            background-color: #f9f9f9;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 5px 5px 0;
+        }
+        .node-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .description {
+            margin-top: 10px;
+        }
+        .parameters {
+            margin-top: 10px;
+        }
+        .parameter {
+            margin-left: 20px;
+            margin-bottom: 5px;
+        }
+        .parameter-name {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <h1>SBS Stereoscope Nodes</h1>
+    
+    <p>
+        This extension provides nodes for creating side-by-side stereoscopic 3D content in ComfyUI.
+    </p>
+    
+    <h2>Video Utility Nodes</h2>
+    
+    <div class="node-info">
+        <div class="node-name">👀 SBS Video Uploader by SamSeen</div>
+        <div class="description">
+            Load a video file and convert it to a sequence of images with resizing options.
+        </div>
+        <div class="parameters">
+            <div class="parameter">
+                <span class="parameter-name">video:</span> Select a video file to upload
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">max_width:</span> Maximum width for resizing (default: 512)
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">max_height:</span> Maximum height for resizing (0 = auto)
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">frame_load_cap:</span> Maximum number of frames to load (0 = all)
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">skip_first_frames:</span> Number of frames to skip from the beginning
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">select_every_nth:</span> Select every nth frame
+            </div>
+        </div>
+    </div>
+    
+    <div class="node-info">
+        <div class="node-name">👀 SBS Image Uploader by SamSeen</div>
+        <div class="description">
+            Load a single image with resizing options.
+        </div>
+        <div class="parameters">
+            <div class="parameter">
+                <span class="parameter-name">image:</span> Select an image file to upload
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">max_width:</span> Maximum width for resizing (default: 512)
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">max_height:</span> Maximum height for resizing (0 = auto)
+            </div>
+        </div>
+    </div>
+    
+    <div class="node-info">
+        <div class="node-name">👀 SBS Video Combiner by SamSeen</div>
+        <div class="description">
+            Combine a sequence of images into a video file.
+        </div>
+        <div class="parameters">
+            <div class="parameter">
+                <span class="parameter-name">images:</span> Input images to combine
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">frame_rate:</span> Frame rate of the output video (default: 30)
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">filename_prefix:</span> Prefix for the output filename
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">format:</span> Output video format (mp4, webm, gif)
+            </div>
+            <div class="parameter">
+                <span class="parameter-name">save_output:</span> Whether to save the output to the output directory
+            </div>
+        </div>
+    </div>
+    
+    <h2>Usage</h2>
+    
+    <p>
+        These nodes can be used to create a workflow for processing videos with SBS stereoscopic effects:
+    </p>
+    
+    <ol>
+        <li>Use the <strong>👀 SBS Video Uploader</strong> to load a video file</li>
+        <li>Process each frame with the <strong>👀 SBS V2 by SamSeen</strong> node</li>
+        <li>Combine the processed frames back into a video with the <strong>👀 SBS Video Combiner</strong> node</li>
+    </ol>
+    
+    <p>
+        For single images, use the <strong>👀 SBS Image Uploader</strong> to load an image and process it with the SBS nodes.
+    </p>
+</body>
+</html>
