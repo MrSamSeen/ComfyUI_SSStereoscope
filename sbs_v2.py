@@ -1,11 +1,49 @@
 import torch
 from PIL import Image
 import numpy as np
-import tqdm
 import os
 import sys
 import cv2
+import numba
 from comfy.utils import ProgressBar
+#DEBUG: import time
+
+# generating the shifted image
+@numba.njit(parallel=True)
+def apply_pixel_shift(sbs_image, current_image_np, pixel_shifts, fliped):
+    """
+    Applies a horizontal pixel shift to generate a side-by-side stereoscopic image.
+
+    Each pixel in the `current_image_np` is shifted horizontally according to the corresponding
+    value in `pixel_shifts`. The pixel is then copied into the `sbs_image` with a limited
+    spread (up to 10 pixels), adjusted by the `fliped` offset.
+
+    Parameters:
+        sbs_image (np.ndarray): Output image to which shifted pixels are written (H x W x 3).
+        current_image_np (np.ndarray): Source image to be shifted (H x W x 3).
+        pixel_shifts (np.ndarray): 2D array of horizontal pixel shifts for each pixel (H x W).
+        fliped (int): Offset for left/right eye positioning. Typically == 0 (left eye) or == width (right eye)
+        so that the second half of the picture goes to the right.
+    """
+
+    height, width = pixel_shifts.shape
+    for y in numba.prange(height):
+        for x in range(width):
+            shift = pixel_shifts[y, x]
+            new_x = x + shift
+            if new_x >= width:
+                new_x = width - 1
+            elif new_x < 0:
+                new_x = 0
+
+            # # copy pixel to shifted area with limited spread
+            max_len = width - new_x - fliped
+            length = min(max(0, shift + 10), max_len)
+
+            for i in range(length):
+                target_x = new_x + i + fliped
+                for c in range(3):
+                    sbs_image[y, target_x, c] = current_image_np[y, x, c]
 
 # Add the current directory to the path so we can import local modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -162,6 +200,9 @@ class SBS_V2_by_SamSeen:
         - sbs_image: the stereoscopic image(s).
         - depth_map: the generated depth map(s).
         """
+
+        # DEBUG: start_depth =  time.perf_counter()
+
         # Update the depth model parameters
         if self.depth_model is not None:
             # Set default edge_weight for compatibility
@@ -195,6 +236,10 @@ class SBS_V2_by_SamSeen:
                 # If original depth is not available, extract from the colored version
                 current_depth_map = depth_map[b].cpu().numpy()  # Get depth map b from batch
 
+                # Chek [3, H, W]
+                if current_depth_map.shape[0] == 3 and len(current_depth_map.shape) == 3:
+                    current_depth_map = np.transpose(current_depth_map, (1, 2, 0))
+
                 # Debug info
                 print(f"Depth map shape: {current_depth_map.shape}, min: {current_depth_map.min()}, max: {current_depth_map.max()}, mean: {current_depth_map.mean()}")
 
@@ -204,55 +249,50 @@ class SBS_V2_by_SamSeen:
                 else:
                     depth_for_sbs = current_depth_map.copy()
 
+            # DEBUG:
+            #end_depth = time.perf_counter()
+            #print(f"Depth map generation time: {end_depth - start_depth:.4f} sec")
+            #start_prep = time.perf_counter()
+
             # Invert depth if requested (swap foreground/background)
             if invert_depth:
                 print("Inverting depth map (swapping foreground/background)")
                 depth_for_sbs = 1.0 - depth_for_sbs
 
-            # Convert the depth map to a PIL image for processing
-            depth_map_img = Image.fromarray((depth_for_sbs * 255).astype(np.uint8), mode='L')
-
-            # Get dimensions and resize depth map to match base image
+            # Get the dimensions of the original img
             width, height = current_image_pil.size
+
+            # Convert depth_for_sbs to 8-bit PIL image and resize
+            depth_map_img = Image.fromarray((depth_for_sbs * 255).astype(np.uint8), mode='L')
             depth_map_img = depth_map_img.resize((width, height), Image.NEAREST)
+
+            # Calculate the shift matrix (pixel_shifts)
+            depth_np      = np.array(depth_map_img, dtype=np.float32)
+            pixel_shifts  = (depth_np * (depth_scale / width)).astype(np.int32)
+
+            # Preparing the source image in NumPy [0–255] and create a "canvas" for the SBS image twice as wide
+            current_image_np = (current_image * 255).astype(np.uint8)
+            sbs_image = np.zeros((height, width * 2, 3), dtype=np.uint8)
+
+            # Duplicate the source into both halves
+            sbs_image[:, :width]  = current_image_np
+            sbs_image[:, width:]  = current_image_np
+
+            # Define the viewing mode (parallel, cross)
             fliped = 0 if mode == "Parallel" else width
 
-            # Create an empty image for the side-by-side result
-            sbs_image = np.zeros((height, width * 2, 3), dtype=np.uint8)
-            depth_scaling = depth_scale / width
-            pbar = ProgressBar(height)
+            # DEBUG:
+            #end_prep = time.perf_counter()
+            #print(f"Data preparation time: {end_prep - start_prep:.4f} sec")
+            #start_apply = time.perf_counter()
 
-            # Fill the base images
-            for y in range(height):
-                for x in range(width):
-                    color = current_image_pil.getpixel((x, y))
-                    sbs_image[y, width + x] = color
-                    sbs_image[y, x] = color
+            # Call the Numba function of shifting and "stretching"
+            apply_pixel_shift(sbs_image, current_image_np, pixel_shifts, fliped)
 
-            # generating the shifted image
-            for y in tqdm.tqdm(range(height)):
-                pbar.update(1)
-                for x in range(width):
-                    try:
-                        depth_value = depth_map_img.getpixel((x, y))
-                        if isinstance(depth_value, tuple):
-                            depth_value = depth_value[0]
-                        pixel_shift = int(depth_value * depth_scaling)
-
-                        new_x = x + pixel_shift
-
-                        if new_x >= width:
-                            new_x = width - 1
-                        if new_x < 0:
-                            new_x = 0
-
-                        for i in range(pixel_shift+10):
-                            if new_x + i >= width or new_x < 0:
-                                break
-                            new_coords = (y, new_x + i + fliped)
-                            sbs_image[new_coords] = current_image_pil.getpixel((x, y))
-                    except Exception as e:
-                        print(f"Error processing pixel at ({x}, {y}): {e}")
+            # DEBUG:
+            #end_apply = time.perf_counter()
+            #print(f"Pixel shift time: {end_apply - start_apply:.4f} sec")
+            #start_post = time.perf_counter()
 
             # Convert to tensor
             sbs_image_tensor = torch.tensor(sbs_image.astype(np.float32) / 255.0)
@@ -277,6 +317,10 @@ class SBS_V2_by_SamSeen:
         # Stack the results to create batched tensors
         sbs_images_batch = torch.stack(sbs_images)
         enhanced_depth_maps_batch = torch.stack(enhanced_depth_maps)
+
+        # DEBUG:
+        #end_post = time.perf_counter()
+        #print(f"Post processing time: {end_post - start_post:.4f} sec")
 
         # Print final output stats
         print(f"Final SBS image batch shape: {sbs_images_batch.shape}, min: {sbs_images_batch.min().item()}, max: {sbs_images_batch.max().item()}")
